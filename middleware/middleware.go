@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"path"
+	"strings"
 	"time"
 
 	"github.com/nethttp-server/context"
@@ -54,5 +56,58 @@ func ParseJsonBodyHandler(next context.HandlerFunc) context.HandlerFunc {
 			}
 		}
 		next(c)
+	}
+}
+
+func StaticHandler(next context.HandlerFunc) context.HandlerFunc {
+	var(
+		dir = http.Dir(".")
+		indexFile = "index.html"
+	)
+
+	return func(c *context.Context) {
+		if c.Request.Method != "GET" && c.Request.Method != "HEAD" {
+			next(c)
+			return
+		}
+		file := c.Request.URL.Path
+		f, err := dir.Open(file)
+		if err != nil {
+			next(c)
+			return
+		}
+		defer f.Close()
+
+		fi, err := f.Stat()
+		if err != nil {
+			next(c)
+			return
+		}
+
+		// 디렉토리인 경우 indexFile을 사용하도록 처리
+		if fi.IsDir() {
+			if !strings.HasSuffix(c.Request.URL.Path, "/") {
+				http.Redirect(c.ResponseWriter, c.Request, c.Request.URL.Path+"/", http.StatusFound)
+				return
+			}
+		}
+
+		file = path.Join(file, indexFile)
+		
+		f, err = dir.Open(file)
+		if err != nil {
+			next(c)
+			return
+		}
+		defer f.Close()
+
+		fi, err = f.Stat()
+		if err != nil || fi.IsDir() {
+			next(c)
+			return
+		}
+
+		// next 호출하지 않고 그냥 파일 서빙하고 끝냄.
+		http.ServeContent(c.ResponseWriter, c.Request, file, fi.ModTime(), f)
 	}
 }
