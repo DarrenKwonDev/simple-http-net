@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/nethttp-server/context"
+	"github.com/nethttp-server/middleware"
 	"github.com/nethttp-server/router"
 )
 
@@ -14,15 +15,21 @@ func main() {
 
 	r := &router.Router{Handlers: emptyMap}
 
-	r.HandleFunc("GET", "/", func(c *context.Context) {
+	r.HandleFunc("GET", "/", middleware.LogHandler( func(c *context.Context) {
 		fmt.Fprintln(c.ResponseWriter, "GET /")
-	})
+	}))
+
 	r.HandleFunc("GET", "/about", func(c *context.Context) {
 		fmt.Fprintln(c.ResponseWriter, "GET about")
 	})
-	r.HandleFunc("GET", "/users/:id", func(c *context.Context) {
-		fmt.Fprintln(c.ResponseWriter, "retrieve user", c.Params["id"])
-	})
+	r.HandleFunc("GET", "/users/:id", middleware.LogHandler(middleware.RecoverHandler(
+		func(c *context.Context) {
+			if c.Params["id"] == "0" {
+				panic("id is zero")
+			}
+			fmt.Fprintln(c.ResponseWriter, "retrieve user", c.Params["id"])
+		},
+	))) 
 	r.HandleFunc("GET", "/users/:id/addresses/:addresses_id", func(c *context.Context) {
 		fmt.Fprintln(c.ResponseWriter, "retrieve user", c.Params["id"], "address", c.Params["addresses_id"])
 	})
