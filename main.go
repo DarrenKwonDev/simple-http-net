@@ -9,10 +9,6 @@ import (
 	"github.com/nethttp-server/router"
 )
 
-type A struct {
-	name string
-}
-
 func main() {
 	emptyMap := make(map[string]map[string]context.HandlerFunc)
 
