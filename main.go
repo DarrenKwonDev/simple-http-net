@@ -15,7 +15,7 @@ func main() {
 
 	r := &router.Router{Handlers: emptyMap}
 
-	r.HandleFunc("GET", "/", middleware.LogHandler( func(c *context.Context) {
+	r.HandleFunc("GET", "/", middleware.LogHandler(func(c *context.Context) {
 		fmt.Fprintln(c.ResponseWriter, "GET /")
 	}))
 
@@ -29,14 +29,25 @@ func main() {
 			}
 			fmt.Fprintln(c.ResponseWriter, "retrieve user", c.Params["id"])
 		},
-	))) 
+	)))
 	r.HandleFunc("GET", "/users/:id/addresses/:addresses_id", func(c *context.Context) {
 		fmt.Fprintln(c.ResponseWriter, "retrieve user", c.Params["id"], "address", c.Params["addresses_id"])
 	})
-	r.HandleFunc("POST", "/users", func (c *context.Context) {
-		fmt.Fprintln(c.ResponseWriter, "create user")
-	})
-	r.HandleFunc("POST", "/users/:id/addresses", func (c *context.Context) {
+	r.HandleFunc("POST", "/users",
+		middleware.LogHandler(
+			middleware.RecoverHandler(
+				middleware.ParseFormHandler(
+					middleware.ParseJsonBodyHandler(
+						func(c *context.Context) {
+							fmt.Fprintln(c.ResponseWriter, "create user")
+						},
+					),
+				),
+			),
+		),
+	)
+
+	r.HandleFunc("POST", "/users/:id/addresses", func(c *context.Context) {
 		fmt.Fprintln(c.ResponseWriter, "create user's address", c.Params["id"])
 	})
 
