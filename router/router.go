@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/nethttp-server/context"
 )
 
 /*
@@ -19,7 +21,7 @@ import (
 }
 */
 type Router struct {
-	Handlers map[string]map[string]http.HandlerFunc
+	Handlers map[string]map[string]context.HandlerFunc
 }
 
 func Match(pattern, path string) (bool, map[string]string) {
@@ -52,7 +54,7 @@ func Match(pattern, path string) (bool, map[string]string) {
 }
 
 
-func (r *Router) HandleFunc(method, pattern string, h http.HandlerFunc) {
+func (r *Router) HandleFunc(method, pattern string, h context.HandlerFunc) {
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Println(err)
@@ -61,7 +63,7 @@ func (r *Router) HandleFunc(method, pattern string, h http.HandlerFunc) {
 
 	m, ok := r.Handlers[method]
 	if !ok {
-		m = make(map[string]http.HandlerFunc)
+		m = make(map[string]context.HandlerFunc)
 		r.Handlers[method] = m
 	}
 	m[pattern] = h
@@ -69,8 +71,18 @@ func (r *Router) HandleFunc(method, pattern string, h http.HandlerFunc) {
 
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	for pattern, handler := range r.Handlers[req.Method] {
-		if ok, _ := Match(pattern, req.URL.Path); ok {
-			handler(w, req)
+		if ok, params := Match(pattern, req.URL.Path); ok {
+			c := context.Context{
+				Params: make(map[string]interface{}),
+				ResponseWriter: w,
+				Request: req,
+			}
+
+			for k, v := range params {
+				c.Params[k] = v
+			}
+
+			handler(&c)
 			return
 		}
 	}
